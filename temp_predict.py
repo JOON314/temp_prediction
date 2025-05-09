@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # 모델 준비
+# # 모델 준비(Model Preparation)
 
 # ## Time layer
 
@@ -18,35 +18,36 @@ class LSTM:
         '''
         Parameters
         ----------
-        Wx: 입력 x에 대한 가중치 매개변수(4개분의 가중치가 담겨 있음)
-        Wh: 은닉 상태 h에 대한 가장추 매개변수(4개분의 가중치가 담겨 있음)
-        b: 편향（4개분의 편향이 담겨 있음）
+        Wx: Weight parameters for input x (contains weights for four components)
+
+        Wh: weight parameters for the hidden state h (contains weights for four components)
+        b: bias (contains biases for four components)
+
         '''
-        self.params = [Wx, Wh, b] #W, Wh ,b를 params에 할당
-        self.grads = [np.zeros_like(Wx), np.zeros_like(Wh), np.zeros_like(b)]  #이에 대응하는 형태로 기울기도 초기화
-        self.cache = None #cache는 순전파때 중간 결과를 보관했다가 역전파 계산에 사용하려는 용도의 인스턴스 변수
+        self.params = [Wx, Wh, b] #Assign W, Wh, and b to params
+        self.grads = [np.zeros_like(Wx), np.zeros_like(Wh), np.zeros_like(b)]  #Initialize the gradients in the corresponding form
+        self.cache = None #`cache` is an instance variable used to store intermediate results during the forward pass for use in the backward pass calculations.
         
         '''
-        x: 현 시각의 입력데이터
-        h_prev: 이전 시각의 은닉 상태
-        c_prev: 이전 시각의 기억 셀
-        
+       x: input data at the current time step
+       h\_prev: hidden state from the previous time step
+       c\_prev: cell state from the previous time step
         '''
     def forward(self, x, h_prev, c_prev):
         Wx, Wh, b = self.params 
-        N, H = h_prev.shape #N: 미니배치수, H: 은닉 상태의 차원수 
+        N, H = h_prev.shape #N: mini-batch size H: dimension of the hidden state
+ 
 
-        A = np.dot(x, Wx) + np.dot(h_prev, Wh) + b #네 개분의 아핀 변환 결과를 저장
-
+        A = np.dot(x, Wx) + np.dot(h_prev, Wh) + b #Store the results of four affine transformations
         f = A[:, :H] 
         g = A[:, H:2*H] 
         i = A[:, 2*H:3*H] 
         o = A[:, 3*H:] 
         '''
-        위와 같이 슬라이스해서 꺼내고 이를 연산 노드에 분배
+        Slice as shown above and distribute them to the computation nodes.
         '''
         f = sigmoid(f) #forget gate
-        g = np.tanh(g) #기억셀
+        g = np.tanh(g) #Cell state
         i = sigmoid(i) #input gate
         o = sigmoid(o) #output gate
 
@@ -106,29 +107,30 @@ class Sigmoid:
         return dx
 
 class TimeLSTM:
-    def __init__(self, Wx, Wh, b, stateful=False): #stateful가 True인 경우 은닉 상태를 유지하고, False인 경우 은닉 상태를 초기화
+    def __init__(self, Wx, Wh, b, stateful=False): #When stateful=True, the hidden state is retained, and when stateful=False, the hidden state is initialized.
+
         self.params = [Wx, Wh, b]
         self.grads = [np.zeros_like(Wx), np.zeros_like(Wh), np.zeros_like(b)]
-        self.layers = None #LSTM 계층을 리스트로 저장하는 용도
+        self.layers = None #The purpose of storing LSTM layers as a list.
 
-        self.h, self.c = None, None #h: forward 메서드를 불러왔을때의 마지막 LSTM 계층의 은닉 상태를 저정
-        self.dh = None #dh: backward 메서드를 불러왔을때 앞 블록의 은닉 상태 기울기를 저장
+        self.h, self.c = None, None #h: Store the hidden state of the last LSTM layer when the forward method is called.
+        self.dh = None #dh: Store the gradient of the hidden state from the previous block when the backward method is called.
         self.stateful = stateful
 
-    def forward(self, xs): #xs: T개 분량의 시계열 데이터를 하나로 모은것
+    def forward(self, xs): #xs: Time series data of length T gathered into one.
         Wx, Wh, b = self.params
         N, T, D = xs.shape
         H = Wh.shape[0]
 
         self.layers = []
-        hs = np.empty((N, T, H), dtype='f') #출력값을 저장할 그릇 생성
+        hs = np.empty((N, T, H), dtype='f') #Create a container to store the output values.
 
         if not self.stateful or self.h is None:
             self.h = np.zeros((N, H), dtype='f')
         if not self.stateful or self.c is None:
             self.c = np.zeros((N, H), dtype='f')
 
-        for t in range(T): #t번 반복해서 생성된 LSTM 계층을 생성하고 변수를 layers에 추가한다.
+        for t in range(T): #Create the LSTM layers generated in t iterations and add the variables to the layers.
             layer = LSTM(*self.params)
             self.h, self.c = layer.forward(xs[:, t, :], self.h, self.c)
             hs[:, t, :] = self.h
@@ -277,14 +279,14 @@ class Rnnfc:
         D, H = dv_size, hidden_size
         rn = np.random.randn
 
-        # 가중치 초기화, Xavier 초깃값 이용
+        # Weight initialization, using Xavier initialization.
         lstm_Wx = (rn(D, 4 * H) / np.sqrt(D)).astype('f')
         lstm_Wh = (rn(H, 4 * H) / np.sqrt(H)).astype('f')
         lstm_b = np.zeros(4 * H).astype('f')
         affine_W = (rn(H, 1) / np.sqrt(H)).astype('f')
         affine_b = np.zeros(1).astype('f')
 
-        # 계층 생성
+        # Create the layer.
         self.layers = [
             TimeLSTM(lstm_Wx, lstm_Wh, lstm_b, stateful=True),
             TimeAffine(affine_W, affine_b)
@@ -292,7 +294,7 @@ class Rnnfc:
         self.loss_layer = TimeMSE()
         self.lstm_layer = self.layers[0]
 
-        # 모든 가중치와 기울기를 리스트에 모은다.
+        # Gather all weights and gradients into a list.
         self.params, self.grads = [], []
         for layer in self.layers:
             self.params += layer.params
@@ -362,7 +364,7 @@ class Adam:
             params[i] -= lr_t * self.m[i] / (np.sqrt(self.v[i]) + 1e-7)
 
 
-# # 데이터 전처리
+# # Data preprocessing.
 
 # In[6]:
 
@@ -385,11 +387,11 @@ df.columns
 from sklearn.preprocessing import MinMaxScaler
 
 scaler = MinMaxScaler()
-# 스케일을 적용할 column을 정의합니다.
+# Define the columns to apply scaling based on the temp1.csv file.
 scale_cols = ['평균 이슬점온도(°C)', '평균 증기압(hPa)', '평균 현지기압(hPa)',
        '평균 해면기압(hPa)', '가조시간(hr)', '평균 지면온도(°C)', '최저 초상온도(°C)',
        '평균 5cm 지중온도(°C)']
-# 스케일 후 columns
+# Columns after scaling.
 df_scaled = scaler.fit_transform(df[scale_cols])
 df_scaled
 
@@ -408,7 +410,7 @@ df_s
 
 # In[11]:
 
-#train 데이터, test 데이터 구분하기
+#Split the data into train and test sets.
 x_train=df_s[:2900] 
 x_test=df_s[2900:]
 y_train=df["평균기온(°C)"][:2900]
@@ -433,26 +435,26 @@ x_test.shape, y_test.shape
 x_train[0:1]
 
 
-# # 모델 테스트
+# # test model
 
-# ## 훈련
+# ## train
 
 # In[15]:
 
 
-# 하이퍼파라미터 설정
+# Set the hyperparameters.
 batch_size = 16
 dv_size = 8
-hidden_size = 8 # RNN의 은닉 상태 벡터의 원소 수
-time_size = 10   # Truncated BPTT가 한 번에 펼치는 시간 크기
+hidden_size = 8 # The number of elements in the hidden state vector of the RNN.
+time_size = 10   # The time size that Truncated BPTT unfolds at once.
 lr = 0.05
 max_epoch = 500
 #max_grad = 0.25
 
 xs=x_train[:-1][:]
-ts=y_train[1:] #다음날 온도를 측정하고 싶기 때문이다.
+ts=y_train[1:] #Because I want to measure the temperature for the next day.
 data_size=len(x_train)
-# 모델 생성
+# Create model
 model = Rnnfc(dv_size,hidden_size)
 optimizer = Adam(lr)
 
@@ -480,7 +482,7 @@ print(jump,offsets)
 
 for epoch in range(max_epoch):
     for iter in range(max_iters):
-        # 미니배치 취득
+        # Obtain mini-batch.
         batch_x = np.empty((batch_size, time_size,8), dtype='f')
         batch_t = np.empty((batch_size, time_size,1), dtype='f')
         for t in range(time_size):
@@ -489,14 +491,14 @@ for epoch in range(max_epoch):
                 batch_t[i, t] = ts[((offset + time_idx) % data_size)+1]
             time_idx += 1
 
-        # 기울기를 구하여 매개변수 갱신
+        # Calculate the gradients and update the parameters.
         loss = model.forward(batch_x, batch_t)
         model.backward()
         optimizer.update(model.params, model.grads)
         total_loss += loss
         loss_count += 1
 
-    # 에폭마다 로스 평가
+    # Evaluate the loss after each epoch.
     print('| 에폭 %d | loss %.2f'% (epoch+1, total_loss))
     loss_list.append(float(total_loss))
     total_loss, loss_count , time_idx= 0, 0, 0
@@ -514,7 +516,7 @@ plt.ylabel('loss')
 plt.show()
 '''
 
-# ## 테스트
+# ## Test
 
 # In[20]:
 
@@ -538,7 +540,7 @@ predict=[]
 
 
 for iter in range(max_iters):
-        # 미니배치 취득
+        # Obtain mini-batch.
         batch_x = np.empty((batch_size, time_size,8), dtype='f')
         batch_t = np.empty((batch_size, time_size,1), dtype='f')
         for t in range(time_size):
@@ -546,7 +548,7 @@ for iter in range(max_iters):
                 batch_x[i, t] = xs.iloc[(offset + time_idx) % data_size:((offset + time_idx) % data_size)+1]
             time_idx += 1
 
-        # 기울기를 구하여 매개변수 갱신
+        # Calculate the gradients and update the parameters.
         predict.append(model.predict(batch_x))
 
 
