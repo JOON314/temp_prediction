@@ -1,3 +1,5 @@
-이 프로젝트는 **기온 예측**을 위한 모델을 구현한 것입니다. 기상청에서 제공된 데이터를 바탕으로 날씨 예측을 시도합니다.
+This project implements a model for **temperature prediction**. It attempts to forecast the weather based on data provided by the Korea Meteorological Administration (KMA).
 
-temp1.csv는 기상청에서 제공된 서울시 날씨 데이터 이므로 이를 변경하여 원하는 지역에 날씨 예측을 시도할수 있습니다.
+`temp1.csv` contains weather data for Seoul provided by KMA, and it can be modified to attempt weather predictions for other regions.
+
+`data.py` and `data1.py` were used to develop the model using a package, and based on this, the functions are directly implemented as classes in `temp.py` to better understand how the data is processed and utilized.
